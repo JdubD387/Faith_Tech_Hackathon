@@ -1,0 +1,6 @@
+{
+  "name": "GraceGather - AI Church Registration Assistant",
+  "description": "Conversational, AI-assisted registration form for church gatherings with real-time field synchronization, intelligent address and time parsing, and strict consent safeguards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
