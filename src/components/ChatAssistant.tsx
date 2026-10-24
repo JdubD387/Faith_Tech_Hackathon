@@ -9,13 +9,16 @@ import {
   RefreshCw,
   Mic,
   MicOff,
-  HelpCircle,
-  Clock,
   Layers,
   ChevronDown,
+  Globe,
 } from 'lucide-react';
-import { ChatMessage, FieldKey, FormState } from '../types/form';
-import { DEMO_SAMPLES } from '../data/churchData';
+import { ChatMessage, FormState } from '../types/form';
+import {
+  LanguageCode,
+  SUPPORTED_LANGUAGES,
+  TRANSLATIONS,
+} from '../i18n/translations';
 
 interface ChatAssistantProps {
   messages: ChatMessage[];
@@ -27,6 +30,8 @@ interface ChatAssistantProps {
   onReset: () => void;
   formState: FormState;
   onViewForm?: () => void;
+  language: LanguageCode;
+  onLanguageChange: (lang: LanguageCode) => void;
 }
 
 export const ChatAssistant: React.FC<ChatAssistantProps> = ({
@@ -39,11 +44,17 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
   onReset,
   formState,
   onViewForm,
+  language,
+  onLanguageChange,
 }) => {
   const [inputText, setInputText] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [showDemos, setShowDemos] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const t = TRANSLATIONS[language] || TRANSLATIONS.en;
+  const langMeta =
+    SUPPORTED_LANGUAGES.find((l) => l.code === language) || SUPPORTED_LANGUAGES[0];
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -63,7 +74,6 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
 
   const toggleMic = () => {
     if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-      alert('Voice dictation is simulated here as Web Speech API is not supported in this browser.');
       return;
     }
 
@@ -73,7 +83,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = false;
-      recognition.lang = 'en-US';
+      recognition.lang = langMeta.speechLang;
 
       if (!isListening) {
         setIsListening(true);
@@ -102,7 +112,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
     <div className="flex flex-col h-full bg-white rounded-3xl border border-slate-200/90 shadow-md overflow-hidden">
       {/* Header */}
       <div className="px-6 py-5 sm:px-8 sm:py-5 border-b border-slate-200 bg-slate-50/90">
-        <div className="flex items-center justify-between mb-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3.5">
           <div className="flex items-center gap-3.5">
             <div className="relative">
               <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/25">
@@ -111,27 +121,46 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
               <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-extrabold text-slate-900 text-base sm:text-lg">Baptize The World Assistant</h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-extrabold text-slate-900 text-base sm:text-lg">
+                  {t.assistantTitle}
+                </h3>
                 <span className="px-2 py-0.5 text-[11px] font-bold bg-blue-100 text-blue-700 rounded-md">
-                  AI Guide
+                  {t.assistantBadge}
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-slate-500">
-                Talk naturally — I'll extract and fill out the form for you
+                {t.assistantSubtitle}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Quick Language Switcher inside Chat Header */}
+            <div className="relative flex items-center">
+              <Globe className="w-3.5 h-3.5 text-blue-600 absolute left-2.5 pointer-events-none" />
+              <select
+                value={language}
+                onChange={(e) => onLanguageChange(e.target.value as LanguageCode)}
+                aria-label={t.languageLabel}
+                className="pl-7 pr-6 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-2xs"
+              >
+                {SUPPORTED_LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.flag} {l.nativeName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {onViewForm && (
               <button
                 type="button"
                 onClick={onViewForm}
                 className="px-3 py-1.5 text-xs sm:text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                title="Inspect current form"
+                title={t.inspectFormBtn}
               >
-                <span>Inspect Form</span>
+                <span>{t.inspectFormBtn}</span>
                 <span className="px-1.5 py-0.5 rounded-full bg-blue-200 text-blue-800 text-[10px] font-bold">
                   {completedRequiredCount}/{totalRequiredCount}
                 </span>
@@ -141,17 +170,19 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
               type="button"
               onClick={() => setShowDemos(!showDemos)}
               className="px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
-              title="View quick demonstration examples"
+              title={t.examplesBtn}
             >
               <Sparkles className="w-4 h-4 text-blue-600" />
-              <span>Examples</span>
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showDemos ? 'rotate-180' : ''}`} />
+              <span>{t.examplesBtn}</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform ${showDemos ? 'rotate-180' : ''}`}
+              />
             </button>
             <button
               type="button"
               onClick={onReset}
               className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer"
-              title="Reset conversation and form"
+              title="Reset"
             >
               <RefreshCw className="w-4 h-4" />
             </button>
@@ -163,10 +194,10 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
           <div className="flex items-center justify-between text-xs sm:text-sm font-semibold text-slate-600">
             <span className="flex items-center gap-1.5">
               <Layers className="w-4 h-4 text-blue-600" />
-              Registration Progress
+              {t.progressLabel}
             </span>
             <span className="text-blue-700 font-bold">
-              {completedRequiredCount} of {totalRequiredCount} required details ({completionPercentage}%)
+              {t.progressStatus(completedRequiredCount, totalRequiredCount, completionPercentage)}
             </span>
           </div>
           <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
@@ -179,7 +210,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
           {/* Captured details preview pills */}
           {completedRequiredCount > 0 && (
             <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              <span className="text-[10px] font-medium text-slate-400">Captured:</span>
+              <span className="text-[10px] font-medium text-slate-400">{t.capturedLabel}</span>
               {formState.fullName && (
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-white text-slate-700 text-[10px] font-medium border border-slate-200">
                   👤 {formState.fullName}
@@ -202,12 +233,12 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
               )}
               {formState.coordinatorRole && (
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-white text-slate-700 text-[10px] font-medium border border-slate-200">
-                  ✓ Coordinator: {formState.coordinatorRole === 'self' ? 'Self' : (formState.coordinatorName || 'Designated')}
+                  ✓ {formState.coordinatorRole === 'self' ? t.coordinatorSelfShort : formState.coordinatorName || t.coordinatorOtherShort}
                 </span>
               )}
               {formState.mapVisibility && (
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-white text-slate-700 text-[10px] font-medium border border-slate-200">
-                  🗺️ {formState.mapVisibility === 'public' ? 'Public' : 'Hidden'}
+                  🗺️ {formState.mapVisibility === 'public' ? t.mapPublicShort : t.mapHiddenShort}
                 </span>
               )}
             </div>
@@ -219,10 +250,10 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
           <div className="mt-3 p-3 bg-blue-50/70 border border-blue-200 rounded-xl space-y-2 text-xs animate-fadeIn">
             <div className="font-semibold text-blue-900 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-              Try a Quick Scenario (Simulate natural user response):
+              {t.tryScenarioTitle}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {DEMO_SAMPLES.map((sample, idx) => (
+              {t.demoSamples.map((sample, idx) => (
                 <button
                   key={idx}
                   type="button"
@@ -270,7 +301,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                     <div className="mt-3 pt-2.5 border-t border-slate-200/70 flex flex-wrap items-center gap-1.5">
                       <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                        Form fields synced:
+                        {t.fieldsSyncedLabel}
                       </span>
                       {msg.updatedFields.map((f) => (
                         <span
@@ -289,7 +320,10 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                     msg.role === 'user' ? 'text-right' : 'text-left'
                   }`}
                 >
-                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(msg.timestamp).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
                 </div>
               </div>
 
@@ -331,7 +365,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                 <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-bounce [animation-delay:0.2s]" />
                 <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-bounce [animation-delay:0.4s]" />
               </div>
-              <span className="text-sm font-medium">Analyzing and updating form...</span>
+              <span className="text-sm font-medium">{t.analyzingStatus}</span>
             </div>
           </div>
         )}
@@ -350,7 +384,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                 ? 'bg-rose-50 text-rose-600 border-rose-300 animate-pulse'
                 : 'text-slate-500 hover:text-slate-800 border-slate-200 hover:bg-slate-50'
             }`}
-            title={isListening ? 'Stop listening' : 'Voice dictation'}
+            title="Voice dictation"
           >
             {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </button>
@@ -359,7 +393,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="Type anything (e.g. '106 E. Shields Ave., Fresno, CA 93704')..."
+            placeholder={t.inputPlaceholder}
             className="flex-1 rounded-2xl border border-slate-300 px-5 py-3 text-sm sm:text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 placeholder:text-slate-400"
             disabled={isLoading}
           />
@@ -369,13 +403,13 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
             disabled={!inputText.trim() || isLoading}
             className="px-5 sm:px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:cursor-not-allowed text-white font-bold text-sm sm:text-base flex items-center gap-2 transition-colors cursor-pointer shadow-sm shadow-blue-500/20"
           >
-            <span>Send</span>
+            <span>{t.sendBtn}</span>
             <Send className="w-4 h-4" />
           </button>
         </form>
         <div className="flex items-center justify-between mt-2.5 text-xs text-slate-400 px-1">
-          <span>AI automatically extracts address, times & names.</span>
-          <span>Sensitive consents require explicit user confirmation.</span>
+          <span>{t.footerAutoExtractNote}</span>
+          <span>{t.footerConsentNote}</span>
         </div>
       </div>
     </div>

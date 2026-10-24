@@ -2,7 +2,6 @@ import React from 'react';
 import {
   X,
   CheckCircle2,
-  AlertCircle,
   Church,
   MapPin,
   Clock,
@@ -15,12 +14,14 @@ import {
   FileCheck,
 } from 'lucide-react';
 import { FormState } from '../types/form';
+import { LanguageCode, TRANSLATIONS } from '../i18n/translations';
 
 interface ReviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   formState: FormState;
   onConfirmSubmit: () => void;
+  language: LanguageCode;
 }
 
 export const ReviewModal: React.FC<ReviewModalProps> = ({
@@ -28,24 +29,27 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
   onClose,
   formState,
   onConfirmSubmit,
+  language,
 }) => {
   if (!isOpen) return null;
 
+  const t = TRANSLATIONS[language] || TRANSLATIONS.en;
+
   const isComplete = Boolean(
     formState.fullName &&
-    formState.email &&
-    formState.phone &&
-    formState.churchName &&
-    formState.address &&
-    formState.city &&
-    formState.state &&
-    formState.zipCode &&
-    formState.denomination &&
-    formState.arrivalTimeHour &&
-    formState.coordinatorRole &&
-    formState.mapVisibility &&
-    formState.privacyConsent &&
-    formState.finalConfirmation
+      formState.email &&
+      formState.phone &&
+      formState.churchName &&
+      formState.address &&
+      formState.city &&
+      formState.state &&
+      formState.zipCode &&
+      formState.denomination &&
+      formState.arrivalTimeHour &&
+      formState.coordinatorRole &&
+      formState.mapVisibility &&
+      formState.privacyConsent &&
+      formState.finalConfirmation
   );
 
   return (
@@ -58,10 +62,8 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
               <FileCheck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Review Registration Summary</h3>
-              <p className="text-xs text-slate-500">
-                Please verify all church details and choices before final submission.
-              </p>
+              <h3 className="text-lg font-bold text-slate-900">{t.reviewModalTitle}</h3>
+              <p className="text-xs text-slate-500">{t.reviewModalSubtitle}</p>
             </div>
           </div>
           <button
@@ -79,17 +81,24 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
               <div className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                 <Church className="w-3.5 h-3.5 text-blue-600" />
-                Church Details
+                {t.sec2Title}
               </div>
-              <div className="font-bold text-slate-900 text-base">{formState.churchName || 'Not specified'}</div>
+              <div className="font-bold text-slate-900 text-base">
+                {formState.churchName || '-'}
+              </div>
               <div className="text-xs text-slate-600 flex items-start gap-1">
                 <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
                 <span>
-                  {formState.address ? `${formState.address}, ${formState.city}, ${formState.state} ${formState.zipCode}` : 'Address not set'}
+                  {formState.address
+                    ? `${formState.address}, ${formState.city}, ${formState.state} ${formState.zipCode}`
+                    : '-'}
                 </span>
               </div>
               <div className="text-xs text-slate-500">
-                Denomination: <span className="font-medium text-slate-800">{formState.denomination || 'Not selected'}</span>
+                {t.denominationLabel}:{' '}
+                <span className="font-medium text-slate-800">
+                  {formState.denomination || '-'}
+                </span>
               </div>
               {formState.website && (
                 <div className="text-xs text-blue-600 truncate">{formState.website}</div>
@@ -99,16 +108,18 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
               <div className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                 <UserCheck className="w-3.5 h-3.5 text-blue-600" />
-                Primary Registrant
+                {t.sec1Title}
               </div>
-              <div className="font-bold text-slate-900 text-base">{formState.fullName || 'Not specified'}</div>
+              <div className="font-bold text-slate-900 text-base">
+                {formState.fullName || '-'}
+              </div>
               <div className="text-xs text-slate-600 flex items-center gap-1.5">
                 <Mail className="w-3.5 h-3.5 text-slate-400" />
-                <span>{formState.email || 'Email missing'}</span>
+                <span>{formState.email || '-'}</span>
               </div>
               <div className="text-xs text-slate-600 flex items-center gap-1.5">
                 <Phone className="w-3.5 h-3.5 text-slate-400" />
-                <span>{formState.phone || 'Phone missing'}</span>
+                <span>{formState.phone || '-'}</span>
               </div>
             </div>
           </div>
@@ -118,26 +129,28 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
             <div className="p-3.5 rounded-xl border border-slate-200 bg-white">
               <div className="text-xs text-slate-500 flex items-center gap-1 mb-1 font-medium">
                 <Clock className="w-3.5 h-3.5 text-blue-600" />
-                Arrival Time
+                {t.arrivalTimeLabel}
               </div>
               <div className="font-bold text-slate-900 text-sm">
                 {formState.arrivalTimeHour
-                  ? `${formState.arrivalTimeHour}:${formState.arrivalTimeMinute || '00'} ${formState.arrivalTimeAmPm || 'AM'}`
-                  : 'Not set'}
+                  ? `${formState.arrivalTimeHour}:${formState.arrivalTimeMinute || '00'} ${
+                      formState.arrivalTimeAmPm || 'AM'
+                    }`
+                  : '-'}
               </div>
             </div>
 
             <div className="p-3.5 rounded-xl border border-slate-200 bg-white">
               <div className="text-xs text-slate-500 flex items-center gap-1 mb-1 font-medium">
                 <UserCheck className="w-3.5 h-3.5 text-blue-600" />
-                Coordinator
+                {t.coordinatorLabel}
               </div>
               <div className="font-bold text-slate-900 text-sm">
                 {formState.coordinatorRole === 'self'
-                  ? 'Self (Registrant)'
+                  ? t.coordSelfTitle
                   : formState.coordinatorRole === 'someone_else'
-                  ? `${formState.coordinatorName || 'Designated person'}`
-                  : 'Not designated'}
+                  ? `${formState.coordinatorName || t.coordOtherTitle}`
+                  : '-'}
               </div>
               {formState.coordinatorRole === 'someone_else' && (
                 <div className="text-[11px] text-slate-500 truncate mt-0.5">
@@ -153,14 +166,14 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
                 ) : (
                   <EyeOff className="w-3.5 h-3.5 text-slate-600" />
                 )}
-                Map Pin
+                {t.sec4Title}
               </div>
               <div className="font-bold text-slate-900 text-sm">
                 {formState.mapVisibility === 'public'
-                  ? 'Public Map Listing'
+                  ? t.mapPublicTitle
                   : formState.mapVisibility === 'hidden'
-                  ? 'Hidden / Private'
-                  : 'Not chosen'}
+                  ? t.mapHiddenTitle
+                  : '-'}
               </div>
             </div>
           </div>
@@ -169,39 +182,29 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
           <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4 space-y-2">
             <div className="text-xs font-bold text-blue-900 flex items-center gap-1.5 uppercase tracking-wider">
               <ShieldCheck className="w-4 h-4 text-blue-600" />
-              Consent & Participation Status
+              {t.sec5Title}
             </div>
             <ul className="text-xs text-slate-700 space-y-1.5 pl-1">
               <li className="flex items-center gap-2">
-                <CheckCircle2 className={`w-4 h-4 ${formState.privacyConsent ? 'text-emerald-600' : 'text-rose-500'}`} />
+                <CheckCircle2
+                  className={`w-4 h-4 ${
+                    formState.privacyConsent ? 'text-emerald-600' : 'text-rose-500'
+                  }`}
+                />
                 <span>
-                  <strong>Data Processing Consent:</strong> {formState.privacyConsent ? 'Affirmed & Consented' : 'Pending consent'}
+                  <strong>{t.dataProcessingConsentTitle}:</strong>{' '}
+                  {formState.privacyConsent ? '✓' : '-'}
                 </span>
               </li>
               <li className="flex items-center gap-2 text-slate-500">
-                <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold flex items-center justify-center">i</span>
+                <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold flex items-center justify-center">
+                  i
+                </span>
                 <span>
-                  <strong>Participation Commitments:</strong> Will be asked for at a later time during the host orientation briefing.
+                  <strong>{t.commitmentsDeferredTitle}:</strong> {t.commitmentsDeferredBadge}
                 </span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${formState.smsUpdates ? 'bg-blue-600 text-white font-bold' : 'bg-slate-200 text-slate-600'}`}>
-                  {formState.smsUpdates ? '✓' : '-'}
-                </span>
-                <span>SMS Status Updates: {formState.smsUpdates ? 'Opted In' : 'Not opted in (optional)'}</span>
               </li>
             </ul>
-          </div>
-
-          {/* Final declaration confirmation */}
-          <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
-            <CheckCircle2 className={`w-4 h-4 mt-0.5 shrink-0 ${formState.finalConfirmation ? 'text-emerald-600' : 'text-amber-500'}`} />
-            <div>
-              <span className="font-bold">Official Registration Confirmation: </span>
-              {formState.finalConfirmation
-                ? 'Confirmed. Your church intent to participate is authorized.'
-                : 'Pending your final checkbox confirmation on the form.'}
-            </div>
           </div>
         </div>
 
@@ -212,7 +215,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors"
           >
-            Edit More
+            {t.editMoreBtn}
           </button>
 
           <button
@@ -226,7 +229,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
             }`}
           >
             <CheckCircle2 className="w-4 h-4" />
-            <span>Confirm & Officially Register</span>
+            <span>{t.confirmRegisterBtn}</span>
           </button>
         </div>
       </div>

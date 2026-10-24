@@ -4,16 +4,10 @@ import {
   Sparkles,
   CheckCircle2,
   HelpCircle,
-  ShieldCheck,
-  ChevronRight,
-  Info,
-  Calendar,
-  Layers,
   ArrowRight,
   MessageSquare,
   FileText,
-  RotateCcw,
-  ExternalLink,
+  Globe,
 } from 'lucide-react';
 import { FormState, FieldKey, ChatMessage, AssistantApiResponse } from './types/form';
 import { INITIAL_FORM_STATE } from './data/churchData';
@@ -21,8 +15,14 @@ import { RegistrationForm } from './components/RegistrationForm';
 import { ChatAssistant } from './components/ChatAssistant';
 import { ReviewModal } from './components/ReviewModal';
 import { SubmissionSuccess } from './components/SubmissionSuccess';
+import {
+  LanguageCode,
+  SUPPORTED_LANGUAGES,
+  TRANSLATIONS,
+} from './i18n/translations';
 
 export default function App() {
+  const [language, setLanguage] = useState<LanguageCode>('en');
   const [formState, setFormState] = useState<FormState>(INITIAL_FORM_STATE);
   const [recentHighlights, setRecentHighlights] = useState<FieldKey[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -32,21 +32,43 @@ export default function App() {
   const [viewMode, setViewMode] = useState<'chat' | 'form'>('chat');
   const [hasAutoTransitioned, setHasAutoTransitioned] = useState(false);
 
+  const t = TRANSLATIONS[language] || TRANSLATIONS.en;
+  const langMeta =
+    SUPPORTED_LANGUAGES.find((l) => l.code === language) || SUPPORTED_LANGUAGES[0];
+
   // Initial welcome message from the assistant
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome-1',
       role: 'assistant',
-      content:
-        "Welcome! I am your Baptize The World registration assistant. Registering your church is fast and conversational. Simply chat with me, and once all your details are collected, I'll present the actual form for you to validate and submit.\n\nTo get started, what is your full name, email address, and mobile phone number?",
+      content: TRANSLATIONS.en.welcomeMessage,
       timestamp: new Date(),
-      quickReplies: [
-        'Pastor David Miller, david@gracefellowship.org, (559) 555-0192',
-        'I am the church administrator',
-        'Help me register our church',
-      ],
+      quickReplies: TRANSLATIONS.en.welcomeQuickReplies,
     },
   ]);
+
+  // Handle explicit language switch by user
+  const handleLanguageChange = (newLang: LanguageCode) => {
+    setLanguage(newLang);
+    const nextT = TRANSLATIONS[newLang] || TRANSLATIONS.en;
+
+    setMessages((prev) => {
+      // If user hasn't sent any message yet, translate the initial welcome message directly
+      const hasUserSentMessage = prev.some((m) => m.role === 'user');
+      if (!hasUserSentMessage) {
+        return [
+          {
+            id: `welcome-${Date.now()}`,
+            role: 'assistant',
+            content: nextT.welcomeMessage,
+            timestamp: new Date(),
+            quickReplies: nextT.welcomeQuickReplies,
+          },
+        ];
+      }
+      return prev;
+    });
+  };
 
   // Compute active visible required fields
   const activeRequiredFields = useMemo(() => {
@@ -134,6 +156,7 @@ export default function App() {
           formState,
           chatHistory: messages.map((m) => ({ role: m.role, content: m.content })),
           visibleFields: activeRequiredFields,
+          language,
         }),
       });
 
@@ -142,6 +165,15 @@ export default function App() {
       }
 
       const data: AssistantApiResponse = await response.json();
+
+      // If the user typed in another supported language, automatically adapt the UI language
+      if (
+        data.detectedLanguage &&
+        SUPPORTED_LANGUAGES.some((l) => l.code === data.detectedLanguage) &&
+        data.detectedLanguage !== language
+      ) {
+        setLanguage(data.detectedLanguage as LanguageCode);
+      }
 
       let nextFormState = formState;
 
@@ -183,7 +215,6 @@ export default function App() {
     } catch (err) {
       console.error('Failed to contact registration assistant:', err);
 
-      // Local fallback parsing
       const assistantMsg: ChatMessage = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
@@ -199,7 +230,7 @@ export default function App() {
   };
 
   const handleReset = () => {
-    if (window.confirm('Are you sure you want to reset all form fields and conversation?')) {
+    if (window.confirm(t.resetConfirm)) {
       setFormState(INITIAL_FORM_STATE);
       setRecentHighlights([]);
       setIsSubmitted(false);
@@ -209,70 +240,90 @@ export default function App() {
         {
           id: `welcome-${Date.now()}`,
           role: 'assistant',
-          content:
-            "Form reset! Let's start fresh. Who is the primary contact person registering this church?",
+          content: t.resetWelcomeMessage,
           timestamp: new Date(),
-          quickReplies: [
-            'Pastor David Miller, david@gracefellowship.org, (559) 555-0192',
-            'I am the coordinator',
-          ],
+          quickReplies: t.welcomeQuickReplies,
         },
       ]);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+    <div
+      dir={langMeta.dir}
+      className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans"
+    >
       {/* Top Header Bar */}
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
               <Church className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-slate-900 text-lg tracking-tight">Baptize The World</span>
-                <span className="hidden sm:inline-flex px-2 py-0.5 text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-full">
-                  AI-Assisted Registration
+                <span className="font-extrabold text-slate-900 text-base sm:text-lg tracking-tight">
+                  Baptize The World
+                </span>
+                <span className="hidden md:inline-flex px-2 py-0.5 text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-full">
+                  {t.badgeAiAssisted}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 hidden sm:block">
-                2026 Valley Church Unity Gathering & Conference
-              </p>
+              <p className="text-xs text-slate-500 hidden sm:block">{t.eventSubtitle}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Global Language Switcher */}
+            <div className="relative flex items-center">
+              <Globe className="w-4 h-4 text-blue-600 absolute left-3 pointer-events-none" />
+              <select
+                value={language}
+                onChange={(e) => handleLanguageChange(e.target.value as LanguageCode)}
+                aria-label={t.languageLabel}
+                className="pl-8 pr-7 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/70 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer transition-colors"
+              >
+                {SUPPORTED_LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.flag} {l.nativeName} ({l.name})
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* View Mode Toggle Switch */}
             <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200">
               <button
                 type="button"
                 onClick={() => setViewMode('chat')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                   viewMode === 'chat'
                     ? 'bg-white text-blue-700 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <MessageSquare className="w-3.5 h-3.5" />
-                <span>Chat Assistant</span>
+                <span className="hidden sm:inline">{t.navChatAssistant}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setViewMode('form')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                   viewMode === 'form'
                     ? 'bg-white text-blue-700 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <FileText className="w-3.5 h-3.5" />
-                <span>Validate Form</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                  isReadyForSubmission ? 'bg-emerald-100 text-emerald-800 font-bold' : 'bg-slate-200 text-slate-700'
-                }`}>
+                <span className="hidden sm:inline">{t.navValidateForm}</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                    isReadyForSubmission
+                      ? 'bg-emerald-100 text-emerald-800 font-bold'
+                      : 'bg-slate-200 text-slate-700'
+                  }`}
+                >
                   {completedRequiredCount}/{totalRequiredCount}
                 </span>
               </button>
@@ -281,8 +332,8 @@ export default function App() {
             <button
               type="button"
               onClick={() => setShowGuide(!showGuide)}
-              className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-medium"
-              title="How does AI assistance work?"
+              className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-medium cursor-pointer"
+              title={t.howItWorksTitle}
             >
               <HelpCircle className="w-4 h-4 text-blue-600" />
             </button>
@@ -297,21 +348,21 @@ export default function App() {
             <div className="space-y-1">
               <div className="font-bold text-white flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-blue-300" />
-                Chat-First Registration & Form Validation Flow
+                {t.howItWorksTitle}
               </div>
               <p className="text-blue-100 text-xs">
-                1. <strong>Chat Assistant Focus:</strong> Chat naturally to provide details (e.g. addresses, arrival times, contact information).
+                {t.howItWorksStep1}
                 <br />
-                2. <strong>Automated Field Mapping:</strong> The assistant extracts and organizes all fields in the background.
+                {t.howItWorksStep2}
                 <br />
-                3. <strong>Form Validation Screen:</strong> As soon as the final field is provided, the full registration form appears for your validation, final review, and submission.
+                {t.howItWorksStep3}
               </p>
             </div>
             <button
               onClick={() => setShowGuide(false)}
-              className="self-end md:self-center px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold"
+              className="self-end md:self-center px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold cursor-pointer"
             >
-              Close
+              {t.closeBtn}
             </button>
           </div>
         </div>
@@ -320,7 +371,11 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {isSubmitted ? (
-          <SubmissionSuccess formState={formState} onReset={handleReset} />
+          <SubmissionSuccess
+            formState={formState}
+            onReset={handleReset}
+            language={language}
+          />
         ) : viewMode === 'chat' ? (
           /* PRIMARY VIEW: Chat Box Focus */
           <div className="max-w-5xl mx-auto space-y-5 animate-fadeIn">
@@ -331,9 +386,11 @@ export default function App() {
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-sm sm:text-base font-bold text-slate-900">Conversational Registration Mode</h4>
+                  <h4 className="text-sm sm:text-base font-bold text-slate-900">
+                    {t.conversationalModeTitle}
+                  </h4>
                   <p className="text-xs sm:text-sm text-slate-600">
-                    Talk freely with the assistant below. The actual form will appear for your validation after all fields are gathered.
+                    {t.conversationalModeDesc}
                   </p>
                 </div>
               </div>
@@ -345,7 +402,9 @@ export default function App() {
                   className="px-4 py-2 rounded-xl bg-white border border-blue-300 text-blue-700 hover:bg-blue-50 text-xs sm:text-sm font-semibold flex items-center gap-2 shrink-0 transition-colors shadow-2xs cursor-pointer"
                 >
                   <FileText className="w-4 h-4" />
-                  <span>Inspect Form ({completedRequiredCount}/{totalRequiredCount})</span>
+                  <span>
+                    {t.inspectFormBtn} ({completedRequiredCount}/{totalRequiredCount})
+                  </span>
                 </button>
               )}
             </div>
@@ -362,6 +421,8 @@ export default function App() {
                 onReset={handleReset}
                 formState={formState}
                 onViewForm={() => setViewMode('form')}
+                language={language}
+                onLanguageChange={handleLanguageChange}
               />
             </div>
           </div>
@@ -376,16 +437,18 @@ export default function App() {
                     <CheckCircle2 className="w-6 h-6" />
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-base sm:text-lg font-bold text-slate-900">
-                        Form Validation & Final Verification
+                        {t.validationBannerTitle}
                       </h3>
                       <span className="px-2 py-0.5 text-[11px] font-bold bg-emerald-100 text-emerald-800 rounded-full">
-                        {isReadyForSubmission ? 'All Fields Gathered' : `${completedRequiredCount}/${totalRequiredCount} Fields`}
+                        {isReadyForSubmission
+                          ? t.validationBannerReady
+                          : t.validationBannerFields(completedRequiredCount, totalRequiredCount)}
                       </span>
                     </div>
                     <p className="text-xs sm:text-sm text-slate-600 mt-1">
-                      Here is your completed registration form. Please review your answers, adjust any field directly if desired, confirm your participation, and submit.
+                      {t.validationBannerDesc}
                     </p>
                   </div>
                 </div>
@@ -393,10 +456,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setViewMode('chat')}
-                  className="px-4 py-2 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs sm:text-sm font-semibold flex items-center gap-2 shrink-0 transition-colors shadow-2xs"
+                  className="px-4 py-2 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs sm:text-sm font-semibold flex items-center gap-2 shrink-0 transition-colors shadow-2xs cursor-pointer"
                 >
                   <MessageSquare className="w-4 h-4 text-blue-600" />
-                  <span>Return to Chat Assistant</span>
+                  <span>{t.returnToChatBtn}</span>
                 </button>
               </div>
             </div>
@@ -414,20 +477,21 @@ export default function App() {
                 }
               }}
               isReadyForSubmission={isReadyForSubmission}
+              language={language}
             />
 
             {/* Bottom floating helper bar to jump back to chat */}
             <div className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-200 shadow-sm text-xs text-slate-500">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-blue-600" />
-                <span>Want to edit anything with conversational guidance?</span>
+                <span>{t.wantToEditWithAi}</span>
               </div>
               <button
                 type="button"
                 onClick={() => setViewMode('chat')}
                 className="font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
               >
-                <span>Ask the Chat Assistant</span>
+                <span>{t.askChatAssistantBtn}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -444,6 +508,7 @@ export default function App() {
           setIsReviewOpen(false);
           setIsSubmitted(true);
         }}
+        language={language}
       />
     </div>
   );

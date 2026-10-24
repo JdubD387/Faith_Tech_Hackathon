@@ -60,4 +60,5 @@ export interface AssistantApiResponse {
   fieldHighlights: FieldKey[];
   isReadyForReview: boolean;
   formatHint?: string;
+  detectedLanguage?: string;
 }

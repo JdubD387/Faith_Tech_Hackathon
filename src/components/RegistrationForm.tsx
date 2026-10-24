@@ -13,11 +13,11 @@ import {
   UserCheck,
   CheckCircle2,
   Sparkles,
-  HelpCircle,
   Building,
 } from 'lucide-react';
 import { FormState, FieldKey } from '../types/form';
-import { COUNTRIES, DENOMINATIONS, US_STATES } from '../data/churchData';
+import { COUNTRIES, DENOMINATIONS } from '../data/churchData';
+import { LanguageCode, TRANSLATIONS } from '../i18n/translations';
 
 interface RegistrationFormProps {
   formState: FormState;
@@ -25,6 +25,7 @@ interface RegistrationFormProps {
   recentHighlights: FieldKey[];
   onSubmit: () => void;
   isReadyForSubmission: boolean;
+  language: LanguageCode;
 }
 
 export const RegistrationForm: React.FC<RegistrationFormProps> = ({
@@ -33,7 +34,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   recentHighlights,
   onSubmit,
   isReadyForSubmission,
+  language,
 }) => {
+  const t = TRANSLATIONS[language] || TRANSLATIONS.en;
   const isHighlighted = (field: FieldKey) => recentHighlights.includes(field);
 
   const getFieldClass = (field: FieldKey) => {
@@ -50,7 +53,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     return (
       <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-blue-100/80 px-2 py-0.5 rounded-full animate-pulse">
         <Sparkles className="w-3 h-3" />
-        AI updated
+        {t.aiUpdatedBadge}
       </span>
     );
   };
@@ -63,14 +66,12 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           <div>
             <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-semibold mb-2">
               <Church className="w-3.5 h-3.5" />
-              Baptize The World Registration
+              {t.formHeaderBadge}
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-              Event Registration Details
+              {t.formHeaderTitle}
             </h2>
-            <p className="text-sm text-slate-500 mt-1">
-              Fields automatically update as you chat with the assistant, or you can edit any field directly below.
-            </p>
+            <p className="text-sm text-slate-500 mt-1">{t.formHeaderSubtitle}</p>
           </div>
         </div>
       </div>
@@ -89,23 +90,25 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold">
                 1
               </span>
-              Registrant & Contact Information
+              {t.sec1Title}
             </h3>
-            <span className="text-xs text-slate-400">Required fields marked with <span className="text-rose-500 font-bold">*</span></span>
+            <span className="text-xs text-slate-400">
+              {t.requiredNote} <span className="text-rose-500 font-bold">*</span>
+            </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                  Full Name <span className="text-rose-500">*</span>
+                  {t.fullNameLabel} <span className="text-rose-500">*</span>
                 </label>
                 <HighlightBadge field="fullName" />
               </div>
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="e.g. Pastor David Miller"
+                  placeholder={t.fullNamePlaceholder}
                   value={formState.fullName}
                   onChange={(e) => onChange('fullName', e.target.value)}
                   className={getFieldClass('fullName')}
@@ -117,14 +120,14 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                  Email Address <span className="text-rose-500">*</span>
+                  {t.emailLabel} <span className="text-rose-500">*</span>
                 </label>
                 <HighlightBadge field="email" />
               </div>
               <div className="relative">
                 <input
                   type="email"
-                  placeholder="name@church.org"
+                  placeholder={t.emailPlaceholder}
                   value={formState.email}
                   onChange={(e) => onChange('email', e.target.value)}
                   className={getFieldClass('email')}
@@ -136,14 +139,14 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                  Mobile Phone Number <span className="text-rose-500">*</span>
+                  {t.phoneLabel} <span className="text-rose-500">*</span>
                 </label>
                 <HighlightBadge field="phone" />
               </div>
               <div className="relative">
                 <input
                   type="tel"
-                  placeholder="(559) 555-0192"
+                  placeholder={t.phonePlaceholder}
                   value={formState.phone}
                   onChange={(e) => onChange('phone', e.target.value)}
                   className={getFieldClass('phone')}
@@ -161,7 +164,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold">
                 2
               </span>
-              Church & Location Details
+              {t.sec2Title}
             </h3>
           </div>
 
@@ -169,14 +172,14 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <div className="sm:col-span-2">
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                  Church Name <span className="text-rose-500">*</span>
+                  {t.churchNameLabel} <span className="text-rose-500">*</span>
                 </label>
                 <HighlightBadge field="churchName" />
               </div>
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="e.g. Grace Fellowship Church"
+                  placeholder={t.churchNamePlaceholder}
                   value={formState.churchName}
                   onChange={(e) => onChange('churchName', e.target.value)}
                   className={getFieldClass('churchName')}
@@ -188,7 +191,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                  Country <span className="text-rose-500">*</span>
+                  {t.countryLabel} <span className="text-rose-500">*</span>
                 </label>
                 <HighlightBadge field="country" />
               </div>
@@ -197,6 +200,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 onChange={(e) => onChange('country', e.target.value)}
                 className={getFieldClass('country')}
               >
+                {formState.country && !COUNTRIES.includes(formState.country) && (
+                  <option value={formState.country}>{formState.country}</option>
+                )}
                 {COUNTRIES.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -208,7 +214,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                  Denomination <span className="text-rose-500">*</span>
+                  {t.denominationLabel} <span className="text-rose-500">*</span>
                 </label>
                 <HighlightBadge field="denomination" />
               </div>
@@ -217,7 +223,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 onChange={(e) => onChange('denomination', e.target.value)}
                 className={getFieldClass('denomination')}
               >
-                <option value="">Select Denomination / Tradition...</option>
+                <option value="">{t.denominationPlaceholder}</option>
+                {formState.denomination && !DENOMINATIONS.includes(formState.denomination) && (
+                  <option value={formState.denomination}>{formState.denomination}</option>
+                )}
                 {DENOMINATIONS.map((d) => (
                   <option key={d} value={d}>
                     {d}
@@ -229,14 +238,14 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <div className="sm:col-span-2">
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                  Street Address <span className="text-rose-500">*</span>
+                  {t.addressLabel} <span className="text-rose-500">*</span>
                 </label>
                 <HighlightBadge field="address" />
               </div>
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="e.g. 106 E. Shields Ave."
+                  placeholder={t.addressPlaceholder}
                   value={formState.address}
                   onChange={(e) => onChange('address', e.target.value)}
                   className={getFieldClass('address')}
@@ -248,13 +257,13 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                  City <span className="text-rose-500">*</span>
+                  {t.cityLabel} <span className="text-rose-500">*</span>
                 </label>
                 <HighlightBadge field="city" />
               </div>
               <input
                 type="text"
-                placeholder="Fresno"
+                placeholder={t.cityPlaceholder}
                 value={formState.city}
                 onChange={(e) => onChange('city', e.target.value)}
                 className={getFieldClass('city')}
@@ -265,13 +274,13 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                    State / Region <span className="text-rose-500">*</span>
+                    {t.stateLabel} <span className="text-rose-500">*</span>
                   </label>
                   <HighlightBadge field="state" />
                 </div>
                 <input
                   type="text"
-                  placeholder="CA"
+                  placeholder={t.statePlaceholder}
                   value={formState.state}
                   onChange={(e) => onChange('state', e.target.value)}
                   className={getFieldClass('state')}
@@ -281,13 +290,13 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                    Postal / ZIP <span className="text-rose-500">*</span>
+                    {t.zipLabel} <span className="text-rose-500">*</span>
                   </label>
                   <HighlightBadge field="zipCode" />
                 </div>
                 <input
                   type="text"
-                  placeholder="93704"
+                  placeholder={t.zipPlaceholder}
                   value={formState.zipCode}
                   onChange={(e) => onChange('zipCode', e.target.value)}
                   className={getFieldClass('zipCode')}
@@ -298,7 +307,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <div className="sm:col-span-2">
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                  Church Website <span className="text-xs text-slate-400 font-normal">(Optional)</span>
+                  {t.websiteLabel}{' '}
+                  <span className="text-xs text-slate-400 font-normal">{t.optionalTag}</span>
                 </label>
                 <HighlightBadge field="website" />
               </div>
@@ -323,7 +333,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold">
                 3
               </span>
-              Event Arrival Time & Coordinator Role
+              {t.sec3Title}
             </h3>
           </div>
 
@@ -332,9 +342,11 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                  Event Arrival Time <span className="text-rose-500">*</span>
+                  {t.arrivalTimeLabel} <span className="text-rose-500">*</span>
                 </label>
-                {(isHighlighted('arrivalTimeHour') || isHighlighted('arrivalTimeMinute') || isHighlighted('arrivalTimeAmPm')) && (
+                {(isHighlighted('arrivalTimeHour') ||
+                  isHighlighted('arrivalTimeMinute') ||
+                  isHighlighted('arrivalTimeAmPm')) && (
                   <HighlightBadge field="arrivalTimeHour" />
                 )}
               </div>
@@ -344,7 +356,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                   onChange={(e) => onChange('arrivalTimeHour', e.target.value)}
                   className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 >
-                  <option value="">Hour</option>
+                  <option value="">{t.hourPlaceholder}</option>
                   {[7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6].map((h) => (
                     <option key={h} value={String(h)}>
                       {h}
@@ -389,7 +401,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               </div>
               <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5 text-slate-400" />
-                Natural conversation: "We'll arrive at 9:30 AM"
+                {t.arrivalTimeHint}
               </p>
             </div>
 
@@ -397,7 +409,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                  Event Coordinator <span className="text-rose-500">*</span>
+                  {t.coordinatorLabel} <span className="text-rose-500">*</span>
                 </label>
                 <HighlightBadge field="coordinatorRole" />
               </div>
@@ -412,15 +424,25 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <UserCheck className={`w-4 h-4 ${formState.coordinatorRole === 'self' ? 'text-blue-600' : 'text-slate-400'}`} />
-                    <span className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                      formState.coordinatorRole === 'self' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300'
-                    }`}>
-                      {formState.coordinatorRole === 'self' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                    <UserCheck
+                      className={`w-4 h-4 ${
+                        formState.coordinatorRole === 'self' ? 'text-blue-600' : 'text-slate-400'
+                      }`}
+                    />
+                    <span
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                        formState.coordinatorRole === 'self'
+                          ? 'border-blue-600 bg-blue-600 text-white'
+                          : 'border-slate-300'
+                      }`}
+                    >
+                      {formState.coordinatorRole === 'self' && (
+                        <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                      )}
                     </span>
                   </div>
-                  <div className="text-xs font-semibold">I will coordinate</div>
-                  <div className="text-[11px] text-slate-500">I am the main coordinator</div>
+                  <div className="text-xs font-semibold">{t.coordSelfTitle}</div>
+                  <div className="text-[11px] text-slate-500">{t.coordSelfDesc}</div>
                 </button>
 
                 <button
@@ -433,15 +455,27 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <User className={`w-4 h-4 ${formState.coordinatorRole === 'someone_else' ? 'text-blue-600' : 'text-slate-400'}`} />
-                    <span className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                      formState.coordinatorRole === 'someone_else' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300'
-                    }`}>
-                      {formState.coordinatorRole === 'someone_else' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                    <User
+                      className={`w-4 h-4 ${
+                        formState.coordinatorRole === 'someone_else'
+                          ? 'text-blue-600'
+                          : 'text-slate-400'
+                      }`}
+                    />
+                    <span
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                        formState.coordinatorRole === 'someone_else'
+                          ? 'border-blue-600 bg-blue-600 text-white'
+                          : 'border-slate-300'
+                      }`}
+                    >
+                      {formState.coordinatorRole === 'someone_else' && (
+                        <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                      )}
                     </span>
                   </div>
-                  <div className="text-xs font-semibold">Someone else</div>
-                  <div className="text-[11px] text-slate-500">Assign a team member</div>
+                  <div className="text-xs font-semibold">{t.coordOtherTitle}</div>
+                  <div className="text-[11px] text-slate-500">{t.coordOtherDesc}</div>
                 </button>
               </div>
             </div>
@@ -452,12 +486,14 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-4 space-y-3 transition-all animate-fadeIn">
               <div className="flex items-center gap-2 text-xs font-semibold text-blue-900">
                 <UserCheck className="w-4 h-4 text-blue-600" />
-                Additional Coordinator Details Required
+                {t.coordDetailsHeader}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-medium text-slate-700">Coordinator Name <span className="text-rose-500">*</span></label>
+                    <label className="text-xs font-medium text-slate-700">
+                      {t.coordNameLabel} <span className="text-rose-500">*</span>
+                    </label>
                     <HighlightBadge field="coordinatorName" />
                   </div>
                   <input
@@ -470,7 +506,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-medium text-slate-700">Coordinator Email <span className="text-rose-500">*</span></label>
+                    <label className="text-xs font-medium text-slate-700">
+                      {t.coordEmailLabel} <span className="text-rose-500">*</span>
+                    </label>
                     <HighlightBadge field="coordinatorEmail" />
                   </div>
                   <input
@@ -483,7 +521,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-medium text-slate-700">Coordinator Phone <span className="text-rose-500">*</span></label>
+                    <label className="text-xs font-medium text-slate-700">
+                      {t.coordPhoneLabel} <span className="text-rose-500">*</span>
+                    </label>
                     <HighlightBadge field="coordinatorPhone" />
                   </div>
                   <input
@@ -506,14 +546,12 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold">
                 4
               </span>
-              Map Visibility Choice
+              {t.sec4Title}
               <span className="text-rose-500 text-sm">*</span>
             </h3>
             <HighlightBadge field="mapVisibility" />
           </div>
-          <p className="text-xs text-slate-500">
-            Please choose how your church location should be displayed. The AI assistant will never make this decision for you.
-          </p>
+          <p className="text-xs text-slate-500">{t.sec4Subtitle}</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <div
@@ -525,12 +563,18 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               }`}
             >
               <div className="flex items-start gap-3">
-                <div className={`p-2 rounded-lg ${formState.mapVisibility === 'public' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                <div
+                  className={`p-2 rounded-lg ${
+                    formState.mapVisibility === 'public'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
                   <Eye className="w-5 h-5" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-900">Public Map Listing</span>
+                    <span className="text-sm font-bold text-slate-900">{t.mapPublicTitle}</span>
                     <input
                       type="radio"
                       name="mapVisibility"
@@ -539,9 +583,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                       className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
                     />
                   </div>
-                  <p className="text-xs text-slate-600 mt-1">
-                    Display your church pin on the public gathering map, attendee directory, and prayer network.
-                  </p>
+                  <p className="text-xs text-slate-600 mt-1">{t.mapPublicDesc}</p>
                 </div>
               </div>
             </div>
@@ -555,12 +597,18 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               }`}
             >
               <div className="flex items-start gap-3">
-                <div className={`p-2 rounded-lg ${formState.mapVisibility === 'hidden' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                <div
+                  className={`p-2 rounded-lg ${
+                    formState.mapVisibility === 'hidden'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
                   <EyeOff className="w-5 h-5" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-900">Hidden / Unlisted</span>
+                    <span className="text-sm font-bold text-slate-900">{t.mapHiddenTitle}</span>
                     <input
                       type="radio"
                       name="mapVisibility"
@@ -569,9 +617,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                       className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
                     />
                   </div>
-                  <p className="text-xs text-slate-600 mt-1">
-                    Keep your address private from the public map. Only registered hosts and verified staff will see details.
-                  </p>
+                  <p className="text-xs text-slate-600 mt-1">{t.mapHiddenDesc}</p>
                 </div>
               </div>
             </div>
@@ -585,20 +631,22 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold">
                 5
               </span>
-              Privacy & Data-Use Consent
+              {t.sec5Title}
               <span className="text-rose-500 text-sm">*</span>
             </h3>
             <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
               <Shield className="w-3.5 h-3.5" />
-              Requires your explicit approval
+              {t.requiresExplicitApproval}
             </div>
           </div>
 
-          <div className={`rounded-xl border p-4 transition-all ${
-            formState.privacyConsent
-              ? 'border-blue-500 bg-blue-50/50 ring-2 ring-blue-400/20 shadow-xs'
-              : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'
-          }`}>
+          <div
+            className={`rounded-xl border p-4 transition-all ${
+              formState.privacyConsent
+                ? 'border-blue-500 bg-blue-50/50 ring-2 ring-blue-400/20 shadow-xs'
+                : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'
+            }`}
+          >
             <label className="flex items-start gap-3 cursor-pointer group">
               <input
                 type="checkbox"
@@ -607,7 +655,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 className="mt-0.5 w-4.5 h-4.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
               />
               <div className="flex-1 text-xs sm:text-sm text-slate-700 group-hover:text-slate-900 leading-relaxed">
-                <span className="font-semibold text-slate-900">Data Processing Consent <span className="text-rose-500">*</span>:</span> I consent to GraceGather securely storing and processing our church registration details for event logistics, attendee check-in, and communications in accordance with the event Privacy Policy.
+                <span className="font-semibold text-slate-900">
+                  {t.dataProcessingConsentTitle} <span className="text-rose-500">*</span>:
+                </span>{' '}
+                {t.dataProcessingConsentBody}
               </div>
             </label>
           </div>
@@ -617,27 +668,25 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-700">
                 <Shield className="w-4 h-4 text-slate-500" />
-                Participation Commitments
+                {t.commitmentsDeferredTitle}
               </div>
               <span className="px-2.5 py-0.5 text-[11px] font-semibold bg-slate-200 text-slate-700 rounded-full">
-                To be confirmed at a later time
+                {t.commitmentsDeferredBadge}
               </span>
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Host orientation attendance, welcoming volunteers, and event conduct commitments will be asked for and confirmed at a later time closer to the gathering date.
-            </p>
+            <p className="text-xs text-slate-500 leading-relaxed">{t.commitmentsDeferredDesc}</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-xs text-slate-600">
               <div className="flex items-center gap-1.5 p-2 rounded-lg bg-white border border-slate-200/80">
                 <span className="w-2 h-2 rounded-full bg-slate-400" />
-                <span>Host Orientation (Later)</span>
+                <span>{t.commitmentItem1}</span>
               </div>
               <div className="flex items-center gap-1.5 p-2 rounded-lg bg-white border border-slate-200/80">
                 <span className="w-2 h-2 rounded-full bg-slate-400" />
-                <span>Volunteer Greeters (Later)</span>
+                <span>{t.commitmentItem2}</span>
               </div>
               <div className="flex items-center gap-1.5 p-2 rounded-lg bg-white border border-slate-200/80">
                 <span className="w-2 h-2 rounded-full bg-slate-400" />
-                <span>Code of Conduct (Later)</span>
+                <span>{t.commitmentItem3}</span>
               </div>
             </div>
           </div>
@@ -650,8 +699,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-700 text-xs font-bold">
                 6
               </span>
-              Communication Preferences
-              <span className="text-xs text-slate-400 font-normal">(Optional)</span>
+              {t.sec6Title}
+              <span className="text-xs text-slate-400 font-normal">{t.optionalTag}</span>
             </h3>
             <HighlightBadge field="smsUpdates" />
           </div>
@@ -664,7 +713,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               className="mt-0.5 w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
             />
             <div className="text-xs sm:text-sm text-slate-700">
-              <span className="font-semibold text-slate-900">Optional Text-Message Alerts:</span> Receive real-time day-of event updates, parking directions, and check-in announcements via SMS on mobile phone.
+              <span className="font-semibold text-slate-900">{t.smsAlertsTitle}</span>{' '}
+              {t.smsAlertsDesc}
             </div>
           </label>
         </div>
@@ -681,11 +731,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               />
               <div>
                 <div className="text-sm font-bold text-blue-950">
-                  Final Participation Confirmation <span className="text-rose-500">*</span>
+                  {t.finalConfirmTitle} <span className="text-rose-500">*</span>
                 </div>
-                <p className="text-xs text-blue-900/80 mt-0.5">
-                  I solemnly confirm our church's official registration and intent to participate in the Valley Church Unity Gathering.
-                </p>
+                <p className="text-xs text-blue-900/80 mt-0.5">{t.finalConfirmDesc}</p>
               </div>
             </label>
           </div>
@@ -700,7 +748,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             }`}
           >
             <CheckCircle2 className="w-5 h-5" />
-            {isReadyForSubmission ? 'Complete & Submit Church Registration' : 'Complete Required Fields to Submit'}
+            {isReadyForSubmission ? t.submitBtnReady : t.submitBtnIncomplete}
           </button>
         </div>
       </form>
