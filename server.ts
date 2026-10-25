@@ -94,19 +94,28 @@ app.post('/api/assistant', async (req, res) => {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    // Detect if the user switched language naturally in their message
+    const requestedLang = (language as LanguageCode) || 'en';
     const heuristicLang = detectLanguageFromText(message) as LanguageCode | null;
-    const effectiveLanguage: LanguageCode = heuristicLang || (language as LanguageCode) || 'en';
+
+    // Preserve the user's selected non-English language unless they explicitly type in a different non-English language.
+    // Never let universal inputs (names, US addresses, emails, "9:30 AM") reset a selected language back to 'en'.
+    const effectiveLanguage: LanguageCode =
+      requestedLang !== 'en'
+        ? heuristicLang && heuristicLang !== 'en'
+          ? heuristicLang
+          : requestedLang
+        : heuristicLang || 'en';
+
     const langMeta =
       SUPPORTED_LANGUAGES.find((l) => l.code === effectiveLanguage) || SUPPORTED_LANGUAGES[0];
 
-    // Always compute the flexible heuristic extraction first as a fast, deterministic baseline
+    // Always compute the flexible heuristic extraction first as a fast, deterministic baseline in effectiveLanguage
     const heuristicResult = getHeuristicResponse(message, formState, effectiveLanguage);
 
     if (!ai) {
       return res.json({
         ...heuristicResult,
-        detectedLanguage: heuristicLang || effectiveLanguage,
+        detectedLanguage: effectiveLanguage,
       });
     }
 
@@ -114,10 +123,10 @@ app.post('/api/assistant', async (req, res) => {
 You are Baptize The World AI, an empathetic, conversational, multilingual registration assistant for an international church gathering.
 Your role is to guide church leaders, coordinators, and volunteers around the world through registering their church.
 
-### MULTILINGUAL INSTRUCTION (CRITICAL):
-- The user's selected/active language is: **${langMeta.name} (${langMeta.nativeName}, code: "${effectiveLanguage}")**.
-- If the user writes their message in a different language (e.g. Spanish, Portuguese, French, Korean, Chinese, Tagalog, German, Arabic, Swahili, or English), respond in the language the user is speaking and set \`detectedLanguage\` to the 2-letter code ('en', 'es', 'pt', 'fr', 'ko', 'zh', 'tl', 'de', 'ar', 'sw'). Otherwise respond in **${langMeta.name} (${langMeta.nativeName})** and set \`detectedLanguage\` to "${effectiveLanguage}".
-- Both \`aiResponse\` and \`suggestedQuickReplies\` MUST be written naturally in that target language!
+### MULTILINGUAL INSTRUCTION (CRITICAL - MUST FOLLOW):
+- The user's active language is: **${langMeta.name} (${langMeta.nativeName}, code: "${effectiveLanguage}")**.
+- You MUST write BOTH \`aiResponse\` and \`suggestedQuickReplies\` 100% in **${langMeta.name} (${langMeta.nativeName})**!
+- NEVER revert to English when the user provides a name, church name, US street address, phone number, email, denomination, or time (like "9:30 AM"). Keep responding in **${langMeta.name} (${langMeta.nativeName})** and set \`detectedLanguage\` to "${effectiveLanguage}".
 - However, internal schema values in \`extractedFields\` MUST use standard canonical values:
   * \`coordinatorRole\`: "self" or "someone_else"
   * \`mapVisibility\`: "public" or "hidden"
@@ -162,13 +171,13 @@ ${JSON.stringify(visibleFields)}
 
     // Race Gemini API call with ThinkingLevel.LOW for fast ~1s responses
     const geminiCall = ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: 'gemini-3-flash-preview',
       contents: [
         {
           role: 'user',
           parts: [
             {
-              text: `Target Language: ${langMeta.name} (${effectiveLanguage})\nConversation so far:\n${chatHistory.map((m: any) => `${m.role}: ${m.content}`).join('\n')}\n\nUser's latest message:\n"${message}"`,
+              text: `Target Language: ${langMeta.name} (${langMeta.nativeName} - ${effectiveLanguage}). IMPORTANT: Respond strictly in ${langMeta.name} (${langMeta.nativeName})!\nConversation so far:\n${chatHistory.map((m: any) => `${m.role}: ${m.content}`).join('\n')}\n\nUser's latest message:\n"${message}"`,
             },
           ],
         },
@@ -213,12 +222,12 @@ ${JSON.stringify(visibleFields)}
             },
             aiResponse: {
               type: Type.STRING,
-              description: 'Conversational response in the target language',
+              description: 'Conversational response strictly in the target language',
             },
             suggestedQuickReplies: {
               type: Type.ARRAY,
               items: { type: Type.STRING },
-              description: '2 to 4 quick action pills in the target language',
+              description: '2 to 4 quick action pills strictly in the target language',
             },
             fieldHighlights: {
               type: Type.ARRAY,
@@ -231,7 +240,7 @@ ${JSON.stringify(visibleFields)}
             },
             detectedLanguage: {
               type: Type.STRING,
-              description: '2-letter language code of user message (en, es, pt, fr, ko, zh, tl, de, ar, sw)',
+              description: '2-letter language code (en, es, pt, fr, ko, zh, tl, de, ar, sw)',
             },
           },
           required: ['extractedFields', 'aiResponse', 'suggestedQuickReplies', 'fieldHighlights', 'isReadyForReview'],
@@ -267,20 +276,50 @@ ${JSON.stringify(visibleFields)}
     const combined = { ...formState, ...mergedExtracted };
     const isReady = computeIsReady(combined);
 
+    // Recompute localized heuristic step using the merged fields so fallback text is always in sync
+    const localizedMergedStep = getHeuristicResponse(message, combined, effectiveLanguage);
+
+    // Safeguard: If effectiveLanguage is non-English, verify Gemini didn't accidentally reply in English
+    const geminiReply = (parsed.aiResponse || '').trim();
+    const looksLikeAccidentalEnglish =
+      effectiveLanguage !== 'en' &&
+      (/\b(great to meet you|what is the name of your church|what denomination|what time should|will you personally|would you like your church|lastly, do you consent|all required information has been gathered|let's make sure we have)\b/i.test(
+        geminiReply
+      ) ||
+        (effectiveLanguage === 'ar' && !/[\u0600-\u06FF]/.test(geminiReply)) ||
+        (effectiveLanguage === 'ko' && !/[\uAC00-\uD7AF]/.test(geminiReply)) ||
+        (effectiveLanguage === 'zh' && !/[\u4E00-\u9FFF]/.test(geminiReply)));
+
+    const finalAiResponse =
+      !geminiReply || looksLikeAccidentalEnglish
+        ? localizedMergedStep.aiResponse
+        : geminiReply;
+
+    const finalQuickReplies =
+      !looksLikeAccidentalEnglish &&
+      parsed.suggestedQuickReplies &&
+      parsed.suggestedQuickReplies.length > 0
+        ? parsed.suggestedQuickReplies
+        : localizedMergedStep.suggestedQuickReplies;
+
     return res.json({
       extractedFields: mergedExtracted,
-      aiResponse: parsed.aiResponse || heuristicResult.aiResponse,
-      suggestedQuickReplies:
-        parsed.suggestedQuickReplies && parsed.suggestedQuickReplies.length > 0
-          ? parsed.suggestedQuickReplies
-          : heuristicResult.suggestedQuickReplies,
+      aiResponse: finalAiResponse,
+      suggestedQuickReplies: finalQuickReplies,
       fieldHighlights: mergedHighlights,
       isReadyForReview: isReady,
-      detectedLanguage: heuristicLang || parsed.detectedLanguage || effectiveLanguage,
+      detectedLanguage: effectiveLanguage,
     });
   } catch (error) {
     console.error('Gemini assistant processing notice (using responsive fallback):', error);
-    const reqLang = (detectLanguageFromText(req.body.message) || req.body.language || 'en') as LanguageCode;
+    const reqLangRaw = (req.body.language || 'en') as LanguageCode;
+    const detectedFromMsg = detectLanguageFromText(req.body.message) as LanguageCode | null;
+    const reqLang: LanguageCode =
+      reqLangRaw !== 'en'
+        ? detectedFromMsg && detectedFromMsg !== 'en'
+          ? detectedFromMsg
+          : reqLangRaw
+        : detectedFromMsg || 'en';
     const fallback = getHeuristicResponse(req.body.message, req.body.formState, reqLang);
     return res.json({
       ...fallback,
@@ -654,6 +693,308 @@ function getLocalizedNextStep(
     }
   }
 
+  if (lang === 'tl') {
+    switch (step) {
+      case 'contact':
+        return {
+          nextQ: 'Para magsimula, ano ang iyong buong pangalan, email address, at mobile phone number?',
+          quickReplies: [
+            'Pastor David Santos, david@gracechurch.org, (559) 555-0192',
+            'Ako ang pangunahing contact',
+          ],
+        };
+      case 'churchAndAddress':
+        return {
+          nextQ: `Ikinagagalak kitang makilala, ${firstName}! Ano ang pangalan ng iyong simbahan at ang kumpletong address nito? (Kahit anong format ay ayos lang!)`,
+          quickReplies: [
+            'Grace Fellowship Church, 106 E. Shields Ave., Fresno, CA 93704',
+            'Calvary Chapel 1200 Church St Austin TX 78701',
+          ],
+        };
+      case 'churchOnly':
+        return {
+          nextQ: `Nakuha ko na ang address (${addr})! Ano ang pangalan ng inyong simbahan?`,
+          quickReplies: ['Grace Community Church', 'Calvary Chapel', 'New Life Fellowship'],
+        };
+      case 'addressOnly':
+        return {
+          nextQ: `Nakuha ko na — ${church}! Ano ang street address, lungsod (city), at estado/probinsya ng simbahan?`,
+          quickReplies: ['106 E. Shields Ave., Fresno, CA 93704', '1200 Church St, Austin, TX 78701'],
+        };
+      case 'cityState':
+        return {
+          nextQ: `Naitala ko na ang ${church} sa ${addr}. Saang lungsod (city) at estado/probinsya ito matatagpuan?`,
+          quickReplies: ['Fresno, CA 93704', 'Austin, TX 78701', 'Los Angeles, CA 90001'],
+        };
+      case 'denomination':
+        return {
+          nextQ: 'Anong denominasyon o kinabibilangang Kristiyanong tradisyon ang inyong simbahan?',
+          quickReplies: ['Non-denominational', 'Baptist', 'Methodist', 'Presbyterian', 'Pentecostal'],
+        };
+      case 'arrivalTime':
+        return {
+          nextQ: 'Anong oras inaasahang darating ang inyong grupo para sa pagtitipon? (Halimbawa: 9:30 AM o 10:00 AM)',
+          quickReplies: ['9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM'],
+        };
+      case 'coordinatorRole':
+        return {
+          nextQ: 'Ikaw ba mismo ang magsisilbing event coordinator para sa inyong simbahan, o ibang tao ang magko-coordinate?',
+          quickReplies: ['Ako ang magko-coordinate', 'Ibang tao'],
+        };
+      case 'coordinatorDetails':
+        return {
+          nextQ: 'Pakibigay ang buong pangalan, email address, at numero ng telepono ng inyong itinalagang coordinator.',
+          quickReplies: ['Sarah Santos, sarah@gracefellowship.org, 559-555-8821'],
+        };
+      case 'mapVisibility':
+        return {
+          nextQ: 'Gusto mo bang lumabas ang lokasyon ng inyong simbahan sa pampublikong mapa at direktoryo, o panatilihin itong nakatago/pribado?',
+          quickReplies: ['Ilagay sa pampublikong mapa', 'Panatilihing nakatago'],
+        };
+      case 'privacyConsent':
+        return {
+          nextQ: 'Bilang panghuli, pinahihintulutan mo ba ang Baptize The World na ligtas na i-store at iproseso ang registration data ng inyong simbahan alinsunod sa aming Privacy Policy? (Ang mga pangako sa partisipasyon ay kukumpirmahin sa susunod na pagkakataon).',
+          quickReplies: ['Oo, pinahihintulutan ko ang privacy policy', 'Sumasang-ayon ako'],
+        };
+      case 'ready':
+        return {
+          nextQ: 'Kumpleto na ang lahat ng kinakailangang impormasyon! Binubuksan ko na ang buong registration form para masuri at maipasa mo.',
+          quickReplies: ['Suriin ang Form Ngayon', 'Ipasa ang Pagpaparehistro'],
+        };
+    }
+  }
+
+  if (lang === 'de') {
+    switch (step) {
+      case 'contact':
+        return {
+          nextQ: 'Lassen Sie uns mit Ihren Kontaktdaten beginnen. Wie lauten Ihr vollständiger Name, Ihre E-Mail-Adresse und Ihre Mobiltelefonnummer?',
+          quickReplies: [
+            'Pastor Thomas Müller, thomas@gnadenkirche.org, (559) 555-0192',
+            'Ich bin der Hauptansprechpartner',
+          ],
+        };
+      case 'churchAndAddress':
+        return {
+          nextQ: `Freut mich sehr, ${firstName}! Wie lautet der Name Ihrer Gemeinde/Kirche und ihre vollständige Adresse? (Jedes Format ist willkommen!)`,
+          quickReplies: [
+            'Grace Fellowship Church, 106 E. Shields Ave., Fresno, CA 93704',
+            'Calvary Chapel 1200 Church St Austin TX 78701',
+          ],
+        };
+      case 'churchOnly':
+        return {
+          nextQ: `Adresse erfasst (${addr})! Wie lautet der Name Ihrer Gemeinde oder Kirche?`,
+          quickReplies: ['Grace Community Church', 'Calvary Chapel', 'Gnadenkirche'],
+        };
+      case 'addressOnly':
+        return {
+          nextQ: `Verstanden — ${church}! Wie lauten Straße, Stadt und Bundesland/Region Ihrer Gemeinde?`,
+          quickReplies: ['106 E. Shields Ave., Fresno, CA 93704', '1200 Church St, Austin, TX 78701'],
+        };
+      case 'cityState':
+        return {
+          nextQ: `Ich habe ${church} in ${addr} notiert. In welcher Stadt und welchem Bundesland/Region befindet sie sich?`,
+          quickReplies: ['Fresno, CA 93704', 'Austin, TX 78701', 'Los Angeles, CA 90001'],
+        };
+      case 'denomination':
+        return {
+          nextQ: 'Welche Konfession oder kirchliche Tradition beschreibt Ihre Gemeinde am besten?',
+          quickReplies: [
+            'Überkonfessionell (Non-denominational)',
+            'Baptisten (Baptist)',
+            'Methodistisch (Methodist)',
+            'Presbyterianisch (Presbyterian)',
+            'Pfingstgemeinde (Pentecostal)',
+          ],
+        };
+      case 'arrivalTime':
+        return {
+          nextQ: 'Um wie viel Uhr wird Ihre Gruppe voraussichtlich beim Treffen ankommen? (Zum Beispiel: 9:30 AM oder 10:00 AM)',
+          quickReplies: ['9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM'],
+        };
+      case 'coordinatorRole':
+        return {
+          nextQ: 'Werden Sie persönlich als Event-Koordinator für Ihre Gemeinde tätig sein, oder übernimmt jemand anderes die Koordination?',
+          quickReplies: ['Ich koordiniere selbst', 'Jemand anderes'],
+        };
+      case 'coordinatorDetails':
+        return {
+          nextQ: 'Bitte geben Sie den vollständigen Namen, die E-Mail-Adresse und die Telefonnummer des beauftragten Koordinators an.',
+          quickReplies: ['Sarah Müller, sarah@gnadenkirche.org, 559-555-8821'],
+        };
+      case 'mapVisibility':
+        return {
+          nextQ: 'Möchten Sie, dass der Standort Ihrer Gemeinde auf der öffentlichen Karte und im Verzeichnis angezeigt wird, oder soll er verborgen/privat bleiben?',
+          quickReplies: ['Öffentlicher Karteneintrag', 'Standort verborgen halten'],
+        };
+      case 'privacyConsent':
+        return {
+          nextQ: 'Stimmen Sie abschließend zu, dass Baptize The World die Registrierungsdaten Ihrer Gemeinde gemäß unserer Datenschutzerklärung sicher speichert und verarbeitet? (Die Teilnahmeverpflichtungen werden zu einem späteren Zeitpunkt bestätigt).',
+          quickReplies: ['Ja, ich stimme der Datenschutzerklärung zu', 'Ich stimme zu'],
+        };
+      case 'ready':
+        return {
+          nextQ: 'Alle erforderlichen Angaben wurden erfasst! Ich öffne nun das vollständige Registrierungsformular zur Überprüfung und endgültigen Bestätigung.',
+          quickReplies: ['Formular jetzt prüfen', 'Registrierung absenden'],
+        };
+    }
+  }
+
+  if (lang === 'ar') {
+    switch (step) {
+      case 'contact':
+        return {
+          nextQ: 'للبدء، ما هو اسمك الكامل وبريدك الإلكتروني ورقم هاتفك المحمول؟',
+          quickReplies: [
+            'القس داود ميلر، david@gracefellowship.org، (559) 555-0192',
+            'أنا جهة الاتصال الرئيسية',
+          ],
+        };
+      case 'churchAndAddress':
+        return {
+          nextQ: `تشرفنا بمعرفتك يا ${firstName}! ما هو اسم كنيستك وعنوانها الكامل؟ (أي صيغة للعنوان مقبولة!)`,
+          quickReplies: [
+            'Grace Fellowship Church, 106 E. Shields Ave., Fresno, CA 93704',
+            'Calvary Chapel 1200 Church St Austin TX 78701',
+          ],
+        };
+      case 'churchOnly':
+        return {
+          nextQ: `تم حفظ العنوان (${addr})! ما هو اسم كنيستكم؟`,
+          quickReplies: ['Grace Community Church', 'Calvary Chapel', 'كنيسة النعمة'],
+        };
+      case 'addressOnly':
+        return {
+          nextQ: `تم الحفظ — ${church}! ما هو عنوان الشارع والمدينة والولاية/المنطقة للكنيسة؟`,
+          quickReplies: ['106 E. Shields Ave., Fresno, CA 93704', '1200 Church St, Austin, TX 78701'],
+        };
+      case 'cityState':
+        return {
+          nextQ: `لديّ ${church} في ${addr}. في أي مدينة وولاية/منطقة تقع الكنيسة؟`,
+          quickReplies: ['Fresno, CA 93704', 'Austin, TX 78701', 'Los Angeles, CA 90001'],
+        };
+      case 'denomination':
+        return {
+          nextQ: 'ما هي الطائفة أو التقليد الكنسي الذي ينطبق على كنيستكم؟',
+          quickReplies: [
+            'غير طائفي (Non-denominational)',
+            'معمداني (Baptist)',
+            'ميثودي (Methodist)',
+            'مشيخي (Presbyterian)',
+            'خمسيني (Pentecostal)',
+          ],
+        };
+      case 'arrivalTime':
+        return {
+          nextQ: 'في أي وقت يتوقع وصول فريق كنيستكم إلى التجمع؟ (مثال: 9:30 AM أو 10:00 AM)',
+          quickReplies: ['9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM'],
+        };
+      case 'coordinatorRole':
+        return {
+          nextQ: 'هل ستقوم أنت شخصياً بدور منسق الحدث لكنيستك، أم سيقوم شخص آخر بالتنسيق؟',
+          quickReplies: ['أنا سأقوم بالتنسيق', 'شخص آخر'],
+        };
+      case 'coordinatorDetails':
+        return {
+          nextQ: 'يرجى تزويدنا بالاسم الكامل للمنسق وبريده الإلكتروني ورقم هاتفه للتواصل معه بشأن الترتيبات.',
+          quickReplies: ['Sarah Miller, sarah@gracefellowship.org, 559-555-8821'],
+        };
+      case 'mapVisibility':
+        return {
+          nextQ: 'هل ترغب في إظهار موقع كنيستك على الخريطة العامة ودليل الحدث، أم تفضل إبقاء الموقع مخفياً/خاصاً؟',
+          quickReplies: ['إدراج في الخريطة العامة', 'إبقاء الموقع مخفياً'],
+        };
+      case 'privacyConsent':
+        return {
+          nextQ: 'أخيراً، هل توافق على قيام Baptize The World بتخزين ومعالجة بيانات تسجيل كنيستك بأمان وفقاً لسياسة الخصوصية؟ (سيتم تأكيد التزامات المشاركة في وقت لاحق).',
+          quickReplies: ['نعم، أوافق على سياسة الخصوصية', 'أوافق'],
+        };
+      case 'ready':
+        return {
+          nextQ: 'تم جمع كافة المعلومات المطلوبة بنجاح! سأقوم الآن بفتح نموذج التسجيل الكامل لمراجعته وتأكيده قبل الإرسال الرسمي.',
+          quickReplies: ['مراجعة النموذج الآن', 'إرسال التسجيل'],
+        };
+    }
+  }
+
+  if (lang === 'sw') {
+    switch (step) {
+      case 'contact':
+        return {
+          nextQ: 'Ili kuanza, tafadhali taja jina lako kamili, barua pepe, na nambari yako ya simu ya mkononi.',
+          quickReplies: [
+            'Mchungaji David Miller, david@gracefellowship.org, (559) 555-0192',
+            'Mimi ni mhusika mkuu',
+          ],
+        };
+      case 'churchAndAddress':
+        return {
+          nextQ: `Nimefurahi kukufahamu, ${firstName}! Jina la kanisa lenu na anwani yake ni nini? (Muundo wowote wa anwani unakubaliwa!)`,
+          quickReplies: [
+            'Grace Fellowship Church, 106 E. Shields Ave., Fresno, CA 93704',
+            'Calvary Chapel 1200 Church St Austin TX 78701',
+          ],
+        };
+      case 'churchOnly':
+        return {
+          nextQ: `Nimepata anwani (${addr})! Jina la kanisa lenu ni nini?`,
+          quickReplies: ['Grace Community Church', 'Calvary Chapel', 'New Life Fellowship'],
+        };
+      case 'addressOnly':
+        return {
+          nextQ: `Nimeipata — ${church}! Anwani ya mtaa, mji, na jimbo/mkoa wa kanisa ni nini?`,
+          quickReplies: ['106 E. Shields Ave., Fresno, CA 93704', '1200 Church St, Austin, TX 78701'],
+        };
+      case 'cityState':
+        return {
+          nextQ: `Nina ${church} katika ${addr}. Je, liko katika mji na jimbo/mkoa gani?`,
+          quickReplies: ['Fresno, CA 93704', 'Austin, TX 78701', 'Los Angeles, CA 90001'],
+        };
+      case 'denomination':
+        return {
+          nextQ: 'Je, kanisa lenu linashirikiana na dhehebu au mapokeo gani ya Kikristo?',
+          quickReplies: [
+            'Isiyo ya Kidhehebu (Non-denominational)',
+            'Wabaptisti (Baptist)',
+            'Wamethodisti (Methodist)',
+            'Wapresbiteri (Presbyterian)',
+            'Wapentekoste (Pentecostal)',
+          ],
+        };
+      case 'arrivalTime':
+        return {
+          nextQ: 'Je, kikundi cha kanisa lenu kinatarajia kuwasili saa ngapi kwenye mkutano? (Kwa mfano: 9:30 AM au 10:00 AM)',
+          quickReplies: ['9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM'],
+        };
+      case 'coordinatorRole':
+        return {
+          nextQ: 'Je, wewe binafsi utakuwa mratibu wa tukio kwa ajili ya kanisa lenu, au mtu mwingine ndiye atakayeratibu?',
+          quickReplies: ['Nitaratibu mwenyewe', 'Mtu mwingine'],
+        };
+      case 'coordinatorDetails':
+        return {
+          nextQ: 'Tafadhali toa jina kamili la mratibu, barua pepe yake, na nambari ya simu.',
+          quickReplies: ['Sarah Miller, sarah@gracefellowship.org, 559-555-8821'],
+        };
+      case 'mapVisibility':
+        return {
+          nextQ: 'Je, ungependa eneo la kanisa lenu lionekane kwenye ramani ya umma na orodha ya tukio, au ungependa liwekwe faragha/limefichwa?',
+          quickReplies: ['Onyesha kwenye ramani ya umma', 'Ficha eneo letu'],
+        };
+      case 'privacyConsent':
+        return {
+          nextQ: 'Mwisho, je, unakubali Baptize The World kuhifadhi na kuchakata kwa usalama taarifa za usajili wa kanisa lenu kwa mujibu wa Sera yetu ya Faragha? (Ahadi za ushiriki zitathibitishwa baadaye).',
+          quickReplies: ['Ndiyo, ninakubali sera ya faragha', 'Ninakubali'],
+        };
+      case 'ready':
+        return {
+          nextQ: 'Taarifa zote zinazohitajika zimekusanywa! Ninafungua fomu kamili ya usajili sasa ili uweze kuhakiki na kuwasilisha.',
+          quickReplies: ['Thibitisha Fomu Sasa', 'Wasilisha Usajili'],
+        };
+    }
+  }
+
   // Default English
   switch (step) {
     case 'contact':
@@ -746,11 +1087,11 @@ function getHeuristicResponse(message: string, current: any = {}, lang: Language
     highlights.push('phone');
   }
 
-  // Time pattern e.g. 9:30 AM, 10am, 9:00 in the morning, 오전 9시 30분
+  // Time pattern e.g. 9:30 AM, 10am, 9:00 in the morning, 오전 9시 30분, الساعة 9:30, nang 9:30, um 9:30 Uhr, saa 9:30
   const timeMatch =
-    message.match(/\b(\d{1,2}):(\d{2})\s*(am|pm)?\b/i) ||
-    message.match(/\b(\d{1,2})\s*(am|pm)\b/i) ||
-    message.match(/\b(?:at|around|a las|às|à|um|saa)\s+(\d{1,2})(?::(\d{2}))?\s*(?:in the (morning|afternoon|evening)|de la mañana|da manhã)?\b/i) ||
+    message.match(/\b(\d{1,2}):(\d{2})\s*(am|pm|uhr)?\b/i) ||
+    message.match(/\b(\d{1,2})\s*(am|pm|uhr)\b/i) ||
+    message.match(/\b(?:at|around|a las|às|à|um|saa|nang|الساعة)\s+(\d{1,2})(?::(\d{2}))?\s*(?:in the (morning|afternoon|evening)|de la mañana|da manhã|صباحاً|مساءً)?\b/i) ||
     message.match(/(?:오전|오후|早上|上午|下午)\s*(\d{1,2})\s*(?:시|:)\s*(\d{2})?/);
 
   if (timeMatch) {
@@ -766,7 +1107,10 @@ function getHeuristicResponse(message: string, current: any = {}, lang: Language
         periodRaw === 'evening' ||
         lower.includes('오후') ||
         lower.includes('下午') ||
-        lower.includes('tarde')
+        lower.includes('tarde') ||
+        lower.includes('مساء') ||
+        lower.includes('hapon') ||
+        lower.includes('jioni')
       ) {
         extracted.arrivalTimeAmPm = 'PM';
       } else {
@@ -810,9 +1154,12 @@ function getHeuristicResponse(message: string, current: any = {}, lang: Language
     lower.includes('隐藏') ||
     lower.includes('不公开') ||
     lower.includes('nakatago') ||
+    lower.includes('pribado') ||
     lower.includes('verborgen') ||
     lower.includes('مخفي') ||
-    lower.includes('ficha')
+    lower.includes('خاص') ||
+    lower.includes('ficha') ||
+    lower.includes('faragha')
   ) {
     extracted.mapVisibility = 'hidden';
     highlights.push('mapVisibility');
@@ -837,8 +1184,18 @@ function getHeuristicResponse(message: string, current: any = {}, lang: Language
     lower.includes('我本人') ||
     lower.includes('我是协调员') ||
     lower.includes('ako ang magko-coordinate') ||
+    lower.includes('ako ang coordinator') ||
+    lower.includes('ako mismo') ||
     lower.includes('ich koordiniere selbst') ||
-    lower.includes('nitaratibu mwenyewe');
+    lower.includes('ich bin der koordinator') ||
+    lower.includes('ich selbst') ||
+    lower.includes('أنا سأقوم بالتنسيق') ||
+    lower.includes('أنا المنسق') ||
+    lower.includes('أنا شخصياً') ||
+    lower.includes('بنفسي') ||
+    lower.includes('nitaratibu mwenyewe') ||
+    lower.includes('mimi ndiye mratibu') ||
+    lower.includes('mimi mwenyewe');
 
   const isDelegate =
     !isSelf &&
@@ -862,6 +1219,7 @@ function getHeuristicResponse(message: string, current: any = {}, lang: Language
       lower.includes('另一位') ||
       lower.includes('ibang tao') ||
       lower.includes('jemand anderes') ||
+      lower.includes('andere person') ||
       lower.includes('شخص آخر') ||
       lower.includes('mtu mwingine') ||
       current.coordinatorRole === 'someone_else');
@@ -884,8 +1242,8 @@ function getHeuristicResponse(message: string, current: any = {}, lang: Language
     const stripped = message
       .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '')
       .replace(/(\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{4}/g, '')
-      .replace(/(?:someone else|otra persona|outra pessoa|coordinator|coordinating|coordinate|coordinates|her name is|his name is|their name is|name is|it is|it's|will be|will coordinate|is|our|the)/gi, '')
-      .replace(/[,;:\-.]/g, ' ')
+      .replace(/(?:someone else|otra persona|outra pessoa|ibang tao|jemand anderes|mtu mwingine|coordinator|coordinating|coordinate|coordinates|her name is|his name is|their name is|name is|it is|it's|will be|will coordinate|is|our|the)/gi, '')
+      .replace(/[,;:\-.،]/g, ' ')
       .trim();
 
     const candidateMatch = stripped.match(/([A-ZÀ-ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-ÿ][a-zà-ÿ]+)+)/);
@@ -944,9 +1302,13 @@ function getHeuristicResponse(message: string, current: any = {}, lang: Language
     lower.includes('我同意') ||
     lower.includes('同意') ||
     lower.includes('pinahihintulutan') ||
-    lower.includes('stimme zu') ||
+    lower.includes('sumasang-ayon') ||
+    lower.includes('stimme') ||
+    lower.includes('einverstanden') ||
     lower.includes('أوافق') ||
-    lower.includes('ninakubali')
+    lower.includes('موافق') ||
+    lower.includes('ninakubali') ||
+    lower.includes('nakubali')
   ) {
     extracted.privacyConsent = true;
     highlights.push('privacyConsent');
@@ -971,12 +1333,14 @@ function getHeuristicResponse(message: string, current: any = {}, lang: Language
   Object.assign(extracted, flexAddr.extracted);
   highlights.push(...flexAddr.highlights);
 
-  // Registrant Full Name pattern
+  // Registrant Full Name pattern (Latin, Korean, Chinese, and Arabic scripts)
   const explicitNameMatch =
     message.match(/(?:i am|i'm|name is|this is|soy(?:\s+el|\s+la)?|sou(?:\s+o|\s+a)?|je suis(?:\s+le|\s+la)?|ako si|ich bin|mimi ni|pastor|pasteur|mchungaji)\s+((?:Pastor|Pasteur|Mchungaji)?\s*[A-ZÀ-ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-ÿ][a-zà-ÿ]+)+)/i) ||
-    message.match(/([가-힣]{2,4}\s*목사|[王李张刘陈杨黄赵周吴][^\s,，]{1,4})/);
+    message.match(/([가-힣]{2,4}\s*목사|[王李张刘陈杨黄赵周吴][^\s,，]{1,4})/) ||
+    message.match(/(?:أنا\s+)?((?:القس|القسيس|الأخ|الأخت)\s+[\u0600-\u06FF]+(?:\s+[\u0600-\u06FF]+){1,3})/u);
   const standaloneNameMatch =
-    message.match(/^(?:Pastor|Pasteur|Mchungaji)?\s*([A-ZÀ-ÿ][a-zà-ÿ]+\s+[A-ZÀ-ÿ][a-zà-ÿ]+)(?:,|\.|$)/);
+    message.match(/^(?:Pastor|Pasteur|Mchungaji)?\s*([A-ZÀ-ÿ][a-zà-ÿ]+\s+[A-ZÀ-ÿ][a-zà-ÿ]+)(?:,|،|\.|$)/) ||
+    message.match(/^((?:القس|القسيس)?\s*[\u0600-\u06FF]{2,}(?:\s+[\u0600-\u06FF]{2,}){1,3})(?:,|،|\.|$)/u);
 
   const chosenNameMatch =
     explicitNameMatch || (!extracted.churchName && !extracted.address ? standaloneNameMatch : null);
@@ -987,10 +1351,14 @@ function getHeuristicResponse(message: string, current: any = {}, lang: Language
     (!extracted.coordinatorName || chosenNameMatch[1].trim() !== extracted.coordinatorName)
   ) {
     const rawName = chosenNameMatch[1].trim();
-    extracted.fullName =
-      message.toLowerCase().includes('pastor') && !rawName.toLowerCase().startsWith('pastor')
-        ? `Pastor ${rawName}`
-        : rawName;
+    const lowerMsg = message.toLowerCase();
+    if (lowerMsg.includes('pastor') && !rawName.toLowerCase().startsWith('pastor')) {
+      extracted.fullName = `Pastor ${rawName}`;
+    } else if (lowerMsg.includes('mchungaji') && !rawName.toLowerCase().startsWith('mchungaji')) {
+      extracted.fullName = `Mchungaji ${rawName}`;
+    } else {
+      extracted.fullName = rawName;
+    }
     highlights.push('fullName');
   }
 

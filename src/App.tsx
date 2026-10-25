@@ -166,9 +166,10 @@ export default function App() {
 
       const data: AssistantApiResponse = await response.json();
 
-      // If the user typed in another supported language, automatically adapt the UI language
+      // If the user typed in another non-English supported language, automatically adapt the UI language
       if (
         data.detectedLanguage &&
+        data.detectedLanguage !== 'en' &&
         SUPPORTED_LANGUAGES.some((l) => l.code === data.detectedLanguage) &&
         data.detectedLanguage !== language
       ) {

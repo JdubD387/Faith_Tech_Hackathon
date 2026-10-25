@@ -174,22 +174,22 @@ export function detectLanguageFromText(text: string): string | null {
   if (/[\u0600-\u06FF]/.test(text)) return 'ar';
 
   const lower = text.toLowerCase();
-  if (/\b(hola|iglesia|nuestra|somos|coordinador|gracias|llegaremos|correo|teléfono|telefono|dirección|direccion)\b/.test(lower)) {
+  if (/\b(hola|iglesia|nuestra|somos|coordinador|gracias|llegaremos|correo|teléfono|telefono|dirección|direccion|administrador)\b/.test(lower)) {
     return 'es';
   }
-  if (/\b(olá|ola|igreja|nossa|coordenador|obrigado|chegaremos|endereço|endereco|oculto|não-denominacional)\b/.test(lower)) {
+  if (/\b(olá|ola|igreja|nossa|coordenador|obrigado|chegaremos|endereço|endereco|oculto|não-denominacional|inscrever)\b/.test(lower)) {
     return 'pt';
   }
-  if (/\b(bonjour|église|eglise|notre|coordinateur|merci|arriverons|adresse|quelqu'un)\b/.test(lower)) {
+  if (/\b(bonjour|église|eglise|notre|coordinateur|merci|arriverons|adresse|quelqu'un|inscrire)\b/.test(lower)) {
     return 'fr';
   }
-  if (/\b(kumusta|simbahan|aming|kami|magko-coordinate|darating|ibang|tulungan)\b/.test(lower)) {
+  if (/\b(kumusta|simbahan|aming|kami|magko-coordinate|darating|ibang|tulungan|irehistro|ako\s+ang|pangalan|pampublikong|nakatago|pinahihintulutan|sumasang-ayon)\b/.test(lower)) {
     return 'tl';
   }
-  if (/\b(hallo|gemeinde|kirche|unsere|koordinator|ankommen|adresse|jemand)\b/.test(lower)) {
+  if (/\b(hallo|gemeinde|kirche|unsere|koordinator|ankommen|adresse|jemand|gemeindeleiter|registrieren|koordiniere|öffentlicher|verborgen|datenschutzerklärung|stimme)\b/.test(lower)) {
     return 'de';
   }
-  if (/\b(habari|kanisa|letu|mchungaji|mratibu|tutawasili|anwani|nisaidie)\b/.test(lower)) {
+  if (/\b(habari|kanisa|letu|mchungaji|mratibu|tutawasili|anwani|nisaidie|msimamizi|kusajili|nitaratibu|mwingine|ramani|umma|ficha|ninakubali)\b/.test(lower)) {
     return 'sw';
   }
   return null;
@@ -209,25 +209,61 @@ export function normalizeDenomination(text: string): string | null {
     lower.includes('초교파') ||
     lower.includes('跨宗派') ||
     lower.includes('غير طائفي') ||
+    lower.includes('isiyo ya kidhehebu') ||
+    lower.includes('walang denominasyon') ||
     lower.includes('independent') ||
     lower.includes('independiente') ||
     lower.includes('bible church')
   ) {
     return 'Non-denominational / Independent';
   }
-  if (lower.includes('baptist') || lower.includes('baptst') || lower.includes('bautista') || lower.includes('batista') || lower.includes('침례') || lower.includes('浸信')) {
+  if (
+    lower.includes('baptist') ||
+    lower.includes('baptst') ||
+    lower.includes('bautista') ||
+    lower.includes('batista') ||
+    lower.includes('baptisten') ||
+    lower.includes('معمدان') ||
+    lower.includes('wabaptisti') ||
+    lower.includes('침례') ||
+    lower.includes('浸信')
+  ) {
     return 'Baptist';
   }
-  if (lower.includes('methodist') || lower.includes('metodista') || lower.includes('méthodiste') || lower.includes('wesleyan') || lower.includes('감리') || lower.includes('卫理')) {
+  if (
+    lower.includes('methodist') ||
+    lower.includes('metodista') ||
+    lower.includes('méthodiste') ||
+    lower.includes('methodistisch') ||
+    lower.includes('ميثود') ||
+    lower.includes('wamethodisti') ||
+    lower.includes('wesleyan') ||
+    lower.includes('감리') ||
+    lower.includes('卫理')
+  ) {
     return 'Methodist / Wesleyan';
   }
-  if (lower.includes('presbyterian') || lower.includes('presbiteriana') || lower.includes('presbytérien') || lower.includes('reformed') || lower.includes('장로') || lower.includes('长老')) {
+  if (
+    lower.includes('presbyterian') ||
+    lower.includes('presbiteriana') ||
+    lower.includes('presbytérien') ||
+    lower.includes('presbyterianisch') ||
+    lower.includes('مشيخ') ||
+    lower.includes('wapresbiteri') ||
+    lower.includes('reformed') ||
+    lower.includes('장로') ||
+    lower.includes('长老')
+  ) {
     return 'Presbyterian / Reformed';
   }
   if (
     lower.includes('pentecostal') ||
     lower.includes('pentecostés') ||
     lower.includes('pentecôtiste') ||
+    lower.includes('pfingst') ||
+    lower.includes('خمسين') ||
+    lower.includes('wapentekoste') ||
+    lower.includes('pentekoste') ||
     lower.includes('charismatic') ||
     lower.includes('carismática') ||
     lower.includes('foursquare') ||
@@ -246,13 +282,13 @@ export function normalizeDenomination(text: string): string | null {
   if (lower.includes('evangelical free') || lower.includes('efca') || lower.includes('evangélica') || lower.includes('evangelisch')) {
     return 'Evangelical Free';
   }
-  if (lower.includes('lutheran') || lower.includes('luterana') || lower.includes('luthérien') || lower.includes('루터') || lower.includes('路德')) {
+  if (lower.includes('lutheran') || lower.includes('luterana') || lower.includes('luthérien') || lower.includes('lutherisch') || lower.includes('لوثر') || lower.includes('walutheri') || lower.includes('루터') || lower.includes('路德')) {
     return 'Lutheran';
   }
-  if (lower.includes('anglican') || lower.includes('episcopal') || lower.includes('성공회') || lower.includes('圣公会')) {
+  if (lower.includes('anglican') || lower.includes('episcopal') || lower.includes('anglikanisch') || lower.includes('أنجليكان') || lower.includes('waanglikana') || lower.includes('성공회') || lower.includes('圣公会')) {
     return 'Anglican / Episcopal';
   }
-  if (lower.includes('catholic') || lower.includes('católica') || lower.includes('catholique') || lower.includes('가톨릭') || lower.includes('天主教')) {
+  if (lower.includes('catholic') || lower.includes('católica') || lower.includes('catholique') || lower.includes('katholisch') || lower.includes('كاثوليك') || lower.includes('wakatoliki') || lower.includes('katoliko') || lower.includes('가톨릭') || lower.includes('天主教')) {
     return 'Catholic';
   }
   if (lower.includes('other christian') || lower.includes('otra') || lower.includes('outra')) {
@@ -290,8 +326,10 @@ export function parseFlexibleAddressAndChurch(
     .replace(/\b\d{1,2}:\d{2}\s*(?:am|pm)?\b/gi, ' ')
     .replace(/\b\d{1,2}\s*(?:am|pm)\b/gi, ' ');
 
-  // Strip denomination sentences like "We are Non-denominational" or "Somos No denominacional" so they don't pollute city/state
-  working = working.replace(/\b(?:we are|somos|nous sommes|wir sind|kami ay|sisi ni|denomination is|affiliation is)\s+[^.]+?(?:\.|$)/gi, ' ');
+  // Strip denomination sentences like "We are Non-denominational" or "Somos No denominacional" or Arabic "نحن غير طائفيين (Non-denominational)" so they don't pollute city/state
+  working = working
+    .replace(/(?:\b(?:we are|somos|nous sommes|wir sind|kami ay|sisi ni|denomination is|affiliation is)|نحن)\s+[^.]+?(?:\.|$)/gi, ' ')
+    .replace(/\((?:non-denominational|baptist|methodist|presbyterian|pentecostal|lutheran|catholic|anglican)\)/gi, ' ');
 
   // 1. Church Name extraction (case-insensitive & typo-tolerant + multilingual church keywords)
   const churchKeywords =
@@ -300,18 +338,18 @@ export function parseFlexibleAddressAndChurch(
   // Pattern A: Explicit intro + church name before "at", "en", "em", "au", ",", "-", or street number
   const churchBeforeAddr = working.match(
     new RegExp(
-      `(?:our church is|church name is|nuestra iglesia es|nossa igreja é|notre église est|ang aming simbahan ay|kanisa letu ni|unsere gemeinde ist|we are from|we are|registering|from)?\\s*([a-zA-ZÀ-ÿ0-9\\s&'.-]+?\\b${churchKeywords}(?:\\s+[a-zA-ZÀ-ÿ0-9&'.-]+){0,3})\\b(?:\\s+(?:at|in|en|em|au|sa|katika|in|located at|located in|on|address is|is at)|[,\\-/]|\\s+(?=\\d+\\s+[a-zA-Z]))`,
+      `(?:our church is|church name is|nuestra iglesia es|nossa igreja é|notre église est|ang aming simbahan ay|kanisa letu ni|unsere gemeinde ist(?:\\s+die)?|unsere kirche ist(?:\\s+die)?|كنيستنا هي|we are from|we are|registering|from)?\\s*([a-zA-ZÀ-ÿ0-9\\s&'.-]+?\\b${churchKeywords}(?:\\s+[a-zA-ZÀ-ÿ0-9&'.-]+){0,3})\\b(?:\\s+(?:at|in|en|em|au|sa|katika|في|located at|located in|on|address is|is at)|[,\\-/،]|\\s+(?=\\d+\\s+[a-zA-Z]))`,
       'i'
     )
   );
   // Pattern B: "our church is [Name] at [number]..." even without "Church" keyword in the name
   const churchBeforeAtNum = working.match(
-    /(?:our church is|church name is|church is|nuestra iglesia es|nossa igreja é|notre église est|ang aming simbahan ay|kanisa letu ni|unsere gemeinde ist|registering)\s+([a-zA-ZÀ-ÿ0-9\s&'.-]{2,40}?)\s+(?:at|en|em|au|sa|katika|located at|on|,|-)\s*(?=\d+\s+[a-zA-Z]|p\.?o\.?\s*box)/i
+    /(?:our church is|church name is|church is|nuestra iglesia es|nossa igreja é|notre église est|ang aming simbahan ay|kanisa letu ni|unsere gemeinde ist(?:\s+die)?|unsere kirche ist(?:\s+die)?|كنيستنا هي|registering)\s+([a-zA-ZÀ-ÿ0-9\s&'.-]{2,40}?)\s+(?:at|en|em|au|sa|katika|in|في|located at|on|,|-|،)\s*(?=\d+\s+[a-zA-Z]|p\.?o\.?\s*box)/i
   );
   // Pattern C: Standalone church name anywhere in text
   const churchStandalone = working.match(
     new RegExp(
-      `(?:our church is|church name is|nuestra iglesia es|nossa igreja é|notre église est|we are|registering)?\\s*\\b([a-zA-ZÀ-ÿ0-9&'.-]+(?:\\s+[a-zA-ZÀ-ÿ0-9&'.-]+){0,4}\\s+${churchKeywords}|${churchKeywords}\\s+[a-zA-ZÀ-ÿ0-9&'.-]+(?:\\s+[a-zA-ZÀ-ÿ0-9&'.-]+){0,3})\\b`,
+      `(?:our church is|church name is|nuestra iglesia es|nossa igreja é|notre église est|ang aming simbahan ay|kanisa letu ni|unsere gemeinde ist(?:\\s+die)?|كنيستنا هي|we are|registering)?\\s*\\b([a-zA-ZÀ-ÿ0-9&'.-]+(?:\\s+[a-zA-ZÀ-ÿ0-9&'.-]+){0,4}\\s+${churchKeywords}|${churchKeywords}\\s+[a-zA-ZÀ-ÿ0-9&'.-]+(?:\\s+[a-zA-ZÀ-ÿ0-9&'.-]+){0,3})\\b`,
       'i'
     )
   );
@@ -323,9 +361,9 @@ export function parseFlexibleAddressAndChurch(
 
   if (matchedChurch) {
     const cleanedChurch = matchedChurch
-      .replace(/^[\s.,;:\-]+/, '')
-      .replace(/^(?:our church is|church name is|church is|nuestra iglesia es|nossa igreja é|notre église est|ang aming simbahan ay|kanisa letu ni|unsere gemeinde ist|we are from|we are|registering|from|the|la|el|die)\s+/i, '')
-      .replace(/^[\s.,;:\-]+/, '')
+      .replace(/^[\s.,;:\-،]+/, '')
+      .replace(/^(?:our church is|church name is|church is|nuestra iglesia es|nossa igreja é|notre église est|ang aming simbahan ay|kanisa letu ni|unsere gemeinde ist(?:\s+die)?|unsere kirche ist(?:\s+die)?|we are from|we are|registering|from|the|la|el|die)\s+/i, '')
+      .replace(/^[\s.,;:\-،]+/, '')
       .trim();
 
     if (cleanedChurch.length >= 3 && !/^(?:public|hidden|someone|pastor|agree|consent)/i.test(cleanedChurch)) {
